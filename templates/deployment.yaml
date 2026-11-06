@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "labk8stack.fullname" . }}
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "labk8stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "labk8stack.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      serviceAccountName: {{ include "labk8stack.fullname" . }}
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: platform
+          image: {{ include "labk8stack.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: LAB_MODE
+              value: kubernetes
+            - name: LAB_IMPERSONATE
+              value: "true"
+            - name: LAB_AUTO_CLEANUP
+              value: "false"
+            - name: LAB_RUNNER_CLUSTERROLE
+              value: {{ include "labk8stack.fullname" . }}-lab-user
+            - name: LAB_NAMESPACE_PREFIX
+              value: {{ .Values.app.namespacePrefix | quote }}
+            - name: LAB_SANDBOX_IDLE_DAYS
+              value: {{ .Values.app.sandboxIdleDays | quote }}
+            - name: LAB_SANDBOX_GRACE_MINUTES
+              value: {{ .Values.app.sandboxGraceMinutes | quote }}
+            - name: LEADERBOARD_DAYS
+              value: {{ .Values.app.leaderboardDays | quote }}
+            - name: COOKIE_SECURE
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "labk8stack.dbSecret" . }}
+                  key: uri
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "labk8stack.appSecret" . }}
+                  key: SECRET_KEY
+            - name: LAB_APP_IMAGE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "labk8stack.appSecret" . }}
+                  key: LAB_APP_IMAGE
+            - name: LAB_APP_GOOD_TAGS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "labk8stack.appSecret" . }}
+                  key: LAB_APP_GOOD_TAGS
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

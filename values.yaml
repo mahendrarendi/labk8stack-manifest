@@ -1,0 +1,40 @@
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+database:
+  # CNPG Cluster resource name in the same namespace as this release.
+  clusterName: ""
+  # The operator creates <clusterName>-app with a `uri` key.
+  appSecretName: ""
+  operatorNamespace: cnpg-system
+
+app:
+  # Create this Secret outside Helm with SECRET_KEY, LAB_APP_IMAGE,
+  # and LAB_APP_GOOD_TAGS. Do not commit its contents to Git.
+  configSecretName: ""
+  namespacePrefix: lab-u
+  sandboxIdleDays: 30
+  sandboxGraceMinutes: 60
+  leaderboardDays: 7
+
+replicaCount: 1
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+cleanup:
+  schedule: "*/15 * * * *"
+
+ingress:
+  enabled: false
+  className: ""
+  host: ""
+  tlsSecretName: ""

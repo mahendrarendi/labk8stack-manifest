@@ -1,0 +1,6 @@
+apiVersion: v2
+name: labk8stack
+description: LabK8stack application on Kubernetes, using an existing CloudNativePG cluster
+type: application
+version: 0.1.0
+appVersion: "0.2.0"

@@ -1,0 +1,27 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "labk8stack.fullname" . }}
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- end }}
+  tls:
+    - hosts:
+        - {{ required "ingress.host is required when ingress.enabled=true" .Values.ingress.host | quote }}
+      secretName: {{ required "ingress.tlsSecretName is required when ingress.enabled=true" .Values.ingress.tlsSecretName | quote }}
+  rules:
+    - host: {{ .Values.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "labk8stack.fullname" . }}
+                port:
+                  name: http
+{{- end }}

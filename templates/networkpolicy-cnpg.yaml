@@ -1,0 +1,34 @@
+# Select only the intended CNPG cluster in this release namespace.
+# Egress remains managed by CNPG; ingress allows the application, CNPG peers,
+# and the operator for status and replication traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "labk8stack.fullname" . }}-cnpg-ingress
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      cnpg.io/cluster: {{ required "database.clusterName is required" .Values.database.clusterName | quote }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "labk8stack.selectorLabels" . | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 5432
+    - from:
+        - podSelector:
+            matchLabels:
+              cnpg.io/cluster: {{ .Values.database.clusterName | quote }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.database.operatorNamespace | quote }}
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 8000
