@@ -1,0 +1,23 @@
+# Replace repoURL and targetRevision with a tested release tag or commit.
+# The Application is manual-sync by default.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: labk8stack
+  namespace: argocd
+spec:
+  project: labk8stack
+  source:
+    repoURL: https://github.com/REPLACE_ME/labk8stack-deploy.git
+    targetRevision: REPLACE_WITH_RELEASE_TAG
+    path: .
+    helm:
+      releaseName: labk8stack
+      valueFiles:
+        - environments/production/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: labk8stack
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

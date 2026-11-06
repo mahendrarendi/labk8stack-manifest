@@ -21,7 +21,7 @@ StorageClass, PVC, atau Secret aplikasi.
    `LAB_APP_GOOD_TAGS`. Simpan Secret melalui pengelola Secret cluster Anda;
    jangan commit nilai rahasia ke Git.
 
-Nilai yang wajib diisi: `image.repository`, `image.tag`,
+Nilai yang wajib diisi: `image.repository`, `image.tag` atau `image.digest`,
 `database.clusterName`, dan `app.configSecretName`. Lihat [values.yaml](values.yaml).
 Untuk namespace database berbeda, isi juga `database.namespace` dan
 `database.appSecretName` (nama Secret lokal di namespace aplikasi).
@@ -80,3 +80,45 @@ jadwal backup sebelum menerapkan chart ke cluster. ClusterRole provisioner
 memiliki izin cluster-wide untuk membuat dan menghapus namespace lab; gunakan
 cluster khusus atau kebijakan admission tambahan bila platform dibuka untuk
 pengguna yang tidak dipercaya.
+
+## GitOps dengan Argo CD
+
+`environments/development/values.yaml` dan `environments/production/values.yaml`
+menyimpan perbedaan yang tidak rahasia: image, nama database, namespace,
+dan prefix namespace challenge. Development memakai prefix `lab-dev-u`,
+production memakai `lab-prod-u`, agar resource kedua stage tidak bertabrakan.
+
+`argocd/` berisi satu `AppProject` dan dua `Application`. Sebelum diterapkan:
+
+1. Ganti `repoURL` dengan URL repository manifest yang sesungguhnya.
+2. Isi `image.repository` dan `image.tag` atau `image.digest` dengan image yang
+   sudah tersedia. Production sebaiknya menunjuk tag rilis atau digest
+   yang sudah lulus pengujian, bukan `main`.
+3. Sesuaikan namespace CNPG, nama cluster, Secret koneksi lokal, Ingress/TLS,
+   serta namespace operator sesuai instalasi Anda.
+4. Siapkan Secret di namespace aplikasi dan database, kemudian pastikan
+   database sehat. Aplikasi development dan production tidak boleh memakai
+   database yang sama.
+5. Terapkan `argocd/project.yaml`, lalu kedua `Application`. `CreateNamespace`
+   membuat namespace aplikasi saat sync; Secret dan CNPG tetap harus tersedia
+   sebelum sync aplikasi.
+
+Contoh validasi sebelum membuat `Application`:
+
+```bash
+helm lint . -f environments/development/values.yaml
+helm template labk8stack-dev . -n labk8stack-dev \
+  -f environments/development/values.yaml > /tmp/labk8stack-dev.yaml
+
+helm lint . -f environments/production/values.yaml
+helm template labk8stack . -n labk8stack \
+  -f environments/production/values.yaml > /tmp/labk8stack-prod.yaml
+```
+
+Argo CD tidak menjalankan `helm install`; ia merender chart dengan Helm lalu
+mengelola resource Kubernetes. Job migrasi yang memakai hook Helm dipetakan
+menjadi `PreSync`. Dua `Application` sengaja tidak mengaktifkan `automated`,
+`prune`, atau `selfHeal`; perubahan Git akan terlihat sebagai `OutOfSync` sampai
+Anda memilih sync manual atau mengubah kebijakannya nanti. Jangan menjalankan
+`helm upgrade` untuk release aplikasi yang sama setelah Argo CD menjadi
+pengelolanya.

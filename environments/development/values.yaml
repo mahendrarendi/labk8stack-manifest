@@ -1,0 +1,17 @@
+# Set image repository and immutable tag before syncing this environment.
+image:
+  repository: ""
+  tag: ""
+
+database:
+  namespace: labk8stack-db-dev
+  clusterName: labk8stack-db-dev
+  appSecretName: labk8stack-db-connection
+
+app:
+  configSecretName: labk8stack-config
+  namespacePrefix: lab-dev-u
+  sandboxIdleDays: 7
+
+ingress:
+  enabled: false

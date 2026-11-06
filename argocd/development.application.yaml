@@ -1,0 +1,22 @@
+# Replace repoURL before applying. The Application is manual-sync by default.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: labk8stack-dev
+  namespace: argocd
+spec:
+  project: labk8stack
+  source:
+    repoURL: https://github.com/REPLACE_ME/labk8stack-deploy.git
+    targetRevision: main
+    path: .
+    helm:
+      releaseName: labk8stack-dev
+      valueFiles:
+        - environments/development/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: labk8stack-dev
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,22 @@
+# Replace repoURL before applying. This project limits chart destinations.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: labk8stack
+  namespace: argocd
+spec:
+  description: LabK8stack development and production deployments
+  sourceRepos:
+    - https://github.com/REPLACE_ME/labk8stack-deploy.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: labk8stack-dev
+    - server: https://kubernetes.default.svc
+      namespace: labk8stack
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding

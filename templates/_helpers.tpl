@@ -19,8 +19,12 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 
 {{- define "labk8stack.image" -}}
 {{- $repo := required "image.repository is required" .Values.image.repository -}}
-{{- $tag := required "image.tag is required" .Values.image.tag -}}
+{{- if .Values.image.digest -}}
+{{- printf "%s@%s" $repo .Values.image.digest -}}
+{{- else -}}
+{{- $tag := required "image.tag or image.digest is required" .Values.image.tag -}}
 {{- printf "%s:%s" $repo $tag -}}
+{{- end -}}
 {{- end -}}
 
 {{- define "labk8stack.dbSecret" -}}
