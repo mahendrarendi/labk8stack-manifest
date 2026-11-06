@@ -24,10 +24,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end -}}
 
 {{- define "labk8stack.dbSecret" -}}
-{{- if .Values.database.appSecretName -}}
+{{- $cluster := required "database.clusterName is required" .Values.database.clusterName -}}
+{{- $dbNamespace := default .Release.Namespace .Values.database.namespace -}}
+{{- if ne $dbNamespace .Release.Namespace -}}
+{{- required "database.appSecretName is required when CNPG is in another namespace; create a local Secret with a cross-namespace URI" .Values.database.appSecretName -}}
+{{- else if .Values.database.appSecretName -}}
 {{- .Values.database.appSecretName -}}
 {{- else -}}
-{{- printf "%s-app" (required "database.clusterName is required" .Values.database.clusterName) -}}
+{{- printf "%s-app" $cluster -}}
 {{- end -}}
 {{- end -}}
 

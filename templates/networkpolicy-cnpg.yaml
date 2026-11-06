@@ -1,3 +1,4 @@
+{{- if and .Values.database.cnpgIngressPolicy (eq (default .Release.Namespace .Values.database.namespace) .Release.Namespace) }}
 # Select only the intended CNPG cluster in this release namespace.
 # Egress remains managed by CNPG; ingress allows the application, CNPG peers,
 # and the operator for status and replication traffic.
@@ -32,3 +33,4 @@ spec:
           port: 5432
         - protocol: TCP
           port: 8000
+{{- end }}

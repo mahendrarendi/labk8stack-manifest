@@ -5,11 +5,17 @@ image:
   pullSecrets: []
 
 database:
-  # CNPG Cluster resource name in the same namespace as this release.
+  # Namespace of the CNPG Cluster. Empty means the Helm release namespace.
+  namespace: ""
   clusterName: ""
-  # The operator creates <clusterName>-app with a `uri` key.
+  # Secret must exist in the APPLICATION namespace. In the same namespace,
+  # CNPG creates <clusterName>-app. Across namespaces, create/sync a local
+  # Secret whose URI uses <clusterName>-rw.<db-namespace>.svc.cluster.local.
   appSecretName: ""
+  connectionSecretKey: uri
   operatorNamespace: cnpg-system
+  # Installed only when CNPG is in the same namespace as this Helm release.
+  cnpgIngressPolicy: true
 
 app:
   # Create this Secret outside Helm with SECRET_KEY, LAB_APP_IMAGE,

@@ -58,7 +58,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "labk8stack.dbSecret" . }}
-                  key: uri
+                  key: {{ .Values.database.connectionSecretKey }}
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
