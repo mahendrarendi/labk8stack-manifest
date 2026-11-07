@@ -7,7 +7,7 @@ metadata:
 spec:
   project: labk8stack-development
   source:
-    repoURL: https://github.com/mahendrarendi/k8s-lab-deploy.git
+    repoURL: https://github.com/mahendrarendi/labk8stack-manifest.git
     targetRevision: main
     path: .
     helm:
