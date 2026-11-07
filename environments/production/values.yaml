@@ -21,9 +21,9 @@ ingress:
   enabled: false
 
 gateway:
-  # Enable after the public Gateway has a labs-https listener and TLS Secret.
-  enabled: false
-  host: labs.mahendrarendi.cloud
+  # Apply ops/lab-certificate.yaml and add the lab-https listener first.
+  enabled: true
+  host: lab.mahendrarendi.cloud
   parentName: public-gateway
   parentNamespace: nginx-gateway
-  sectionName: labs-https
+  sectionName: lab-https

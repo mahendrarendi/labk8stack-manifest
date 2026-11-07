@@ -9,7 +9,7 @@ separately from this chart.
 
 | Path | Purpose |
 | --- | --- |
-| `templates/` | Application, migration, cleanup, network, RBAC, and admission resources |
+| `templates/` | Numbered Helm templates for identity, permissions, configuration, workload, routing, and cleanup |
 | `environments/` | Development and production values |
 | `argocd/` | Environment projects and manual-sync Applications |
 | `scripts/validate.sh` | Helm lint and render checks used locally and in CI |
@@ -118,20 +118,29 @@ Database availability depends on the CNPG and storage design.
 
 ## Public domain with Gateway API
 
-Production is prepared for `labs.mahendrarendi.cloud` through an optional
-`HTTPRoute`. The existing `public-gateway` is in namespace `nginx-gateway`.
-Enable `gateway.enabled` in `environments/production/values.yaml` only after
-that Gateway has an HTTPS listener named `labs-https` for the labs hostname and
-a ready TLS certificate Secret in the **Gateway namespace**. The HTTPRoute
-attaches to that listener and forwards traffic to Service `labk8stack:80`.
+Production uses `lab.mahendrarendi.cloud` through the chart's `HTTPRoute`.
+The route attaches to the `lab-https` listener on `public-gateway` in namespace
+`nginx-gateway` and forwards traffic to Service `labk8stack:80`.
 
-The current Gateway configuration has a hostname-specific HTTPS listener for
-`gitops.mahendrarendi.cloud`; that listener does not serve the labs hostname.
-Add a separate HTTPS listener for labs, or update your gateway infrastructure
-to use a suitable shared/wildcard listener. Manage the Gateway and cert-manager
-Certificate with the gateway infrastructure, not inside this application
-chart. The `letsencrypt-prod` ClusterIssuer used for GitOps can also issue the
-labs certificate if its HTTP-01 route and public DNS are working.
+The existing Gateway manifest on this node has an HTTPS listener only for
+`gitops.mahendrarendi.cloud`. Before syncing the enabled HTTPRoute, prepare
+the labs Certificate and listener with:
+
+```bash
+bash ops/prepare-lab-domain.sh
+kubectl -n nginx-gateway get certificate lab-tls
+```
+
+Wait for the Certificate to report `Ready=True`. The script applies
+`ops/lab-certificate.yaml` and appends the labs HTTPS listener only if it is
+absent. It does not own the shared Gateway in Argo CD; add the same listener to
+your gateway infrastructure source so later reconciliations retain it. DNS
+for `lab.mahendrarendi.cloud` must resolve to the public Gateway endpoint and
+HTTP port 80 must reach the Gateway for the configured ACME HTTP-01 solver.
+
+Filenames in `templates/` are numbered by dependency for readability. Helm
+and Argo CD still determine actual apply order through hooks, sync waves, and
+resource types; the numeric filename prefixes do not enforce rollout order.
 
 The `ingress` template is retained for clusters that run an Ingress controller.
 Enable either the Gateway route or Ingress, never both. The application sets

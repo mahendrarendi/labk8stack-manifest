@@ -61,4 +61,4 @@ gateway:
   host: ""
   parentName: public-gateway
   parentNamespace: nginx-gateway
-  sectionName: labs-https
+  sectionName: lab-https

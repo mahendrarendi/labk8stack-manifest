@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: lab-tls
+  namespace: nginx-gateway
+spec:
+  secretName: lab-tls
+  dnsNames:
+    - lab.mahendrarendi.cloud
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer

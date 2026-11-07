@@ -37,4 +37,4 @@ helm template labk8stack . -n labk8stack \
   -f environments/production/values.yaml \
   --set gateway.enabled=true > "$validation_dir/gateway-rendered.yaml"
 grep -q 'kind: HTTPRoute' "$validation_dir/gateway-rendered.yaml"
-grep -q 'labs.mahendrarendi.cloud' "$validation_dir/gateway-rendered.yaml"
+grep -q 'lab.mahendrarendi.cloud' "$validation_dir/gateway-rendered.yaml"
