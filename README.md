@@ -13,6 +13,7 @@ separately from this chart.
 | `environments/` | Development and production values |
 | `argocd/` | Environment projects and manual-sync Applications |
 | `scripts/validate.sh` | Helm lint and render checks used locally and in CI |
+| `scripts/bootstrap-production-secrets.sh` | One-time namespace and Secret provisioning for initial production integration |
 
 ## Prerequisites
 
@@ -156,7 +157,20 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
 3. Create namespace `labk8stack`. Synchronize the CNPG application Secret into
    it and create `labk8stack-config` with `SECRET_KEY`, `LAB_APP_IMAGE`, and
    `LAB_APP_GOOD_TAGS`. Use your Secret manager for rotation. The one-time copy
-   below is suitable only for initial integration testing:
+   below is suitable only for initial integration testing. The easiest way to
+   perform it is:
+
+   ```bash
+   bash scripts/bootstrap-production-secrets.sh
+   ```
+
+   The script generates a random session key, uses the public echoserver as
+   the initial lab image, skips Secrets that already exist, and never prints
+   Secret values. To use a different lab image, set `LAB_APP_IMAGE` and
+   `LAB_APP_GOOD_TAGS` in the shell before running it. Its CNPG Secret copy
+   does not follow credential rotation.
+
+   For manual provisioning, the equivalent commands are:
 
    ```bash
    kubectl -n cnpg-system get cluster labk8stack-pgcluster
