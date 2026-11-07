@@ -116,6 +116,27 @@ nodes. At least two schedulable nodes are needed for node maintenance without
 an application interruption. Readiness and liveness probes are included.
 Database availability depends on the CNPG and storage design.
 
+## Public domain with Gateway API
+
+Production is prepared for `labs.mahendrarendi.cloud` through an optional
+`HTTPRoute`. The existing `public-gateway` is in namespace `nginx-gateway`.
+Enable `gateway.enabled` in `environments/production/values.yaml` only after
+that Gateway has an HTTPS listener named `labs-https` for the labs hostname and
+a ready TLS certificate Secret in the **Gateway namespace**. The HTTPRoute
+attaches to that listener and forwards traffic to Service `labk8stack:80`.
+
+The current Gateway configuration has a hostname-specific HTTPS listener for
+`gitops.mahendrarendi.cloud`; that listener does not serve the labs hostname.
+Add a separate HTTPS listener for labs, or update your gateway infrastructure
+to use a suitable shared/wildcard listener. Manage the Gateway and cert-manager
+Certificate with the gateway infrastructure, not inside this application
+chart. The `letsencrypt-prod` ClusterIssuer used for GitOps can also issue the
+labs certificate if its HTTP-01 route and public DNS are working.
+
+The `ingress` template is retained for clusters that run an Ingress controller.
+Enable either the Gateway route or Ingress, never both. The application sets
+`COOKIE_SECURE=true`, so use HTTPS for browser login.
+
 The migration Job runs before web updates. Schema changes must be backward
 compatible with the currently running application during a rolling release.
 Review migrations before promotion; reverting an image does not reverse a

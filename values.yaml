@@ -55,3 +55,10 @@ ingress:
   className: ""
   host: ""
   tlsSecretName: ""
+
+gateway:
+  enabled: false
+  host: ""
+  parentName: public-gateway
+  parentNamespace: nginx-gateway
+  sectionName: labs-https

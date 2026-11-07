@@ -19,3 +19,11 @@ app:
 
 ingress:
   enabled: false
+
+gateway:
+  # Enable after the public Gateway has a labs-https listener and TLS Secret.
+  enabled: false
+  host: labs.mahendrarendi.cloud
+  parentName: public-gateway
+  parentNamespace: nginx-gateway
+  sectionName: labs-https

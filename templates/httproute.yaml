@@ -1,0 +1,28 @@
+{{- if .Values.gateway.enabled }}
+{{- if .Values.ingress.enabled }}
+{{- fail "Enable either gateway or ingress, not both" }}
+{{- end }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "labk8stack.fullname" . }}
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ required "gateway.parentName is required" .Values.gateway.parentName | quote }}
+      namespace: {{ required "gateway.parentNamespace is required" .Values.gateway.parentNamespace | quote }}
+      sectionName: {{ required "gateway.sectionName is required" .Values.gateway.sectionName | quote }}
+  hostnames:
+    - {{ required "gateway.host is required" .Values.gateway.host | quote }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "labk8stack.fullname" . }}
+          port: 80
+{{- end }}
