@@ -1,12 +1,15 @@
-# Pin production to an immutable image tag or digest before syncing.
+# Pin production to an immutable image digest before syncing.
 image:
   repository: ""
   tag: ""
 
 database:
-  namespace: labk8stack-db-prod
-  clusterName: labk8stack-db-prod
-  appSecretName: labk8stack-db-connection
+  namespace: cnpg-system
+  clusterName: labk8stack-pgcluster
+  # Mirror the CNPG application Secret into the application namespace.
+  # fqdn-uri resolves the RW Service across namespaces without rewriting it.
+  appSecretName: labk8stack-pgcluster-app
+  connectionSecretKey: fqdn-uri
 
 app:
   configSecretName: labk8stack-config

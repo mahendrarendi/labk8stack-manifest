@@ -27,7 +27,15 @@ app:
   sandboxGraceMinutes: 60
   leaderboardDays: 7
 
-replicaCount: 1
+replicaCount: 2
+
+availability:
+  podDisruptionBudget: true
+
+# Requires Kubernetes 1.30+ ValidatingAdmissionPolicy support. This blocks the
+# provisioner ServiceAccount from changing resources outside its lab prefix.
+admission:
+  namespaceGuard: true
 
 resources:
   requests:

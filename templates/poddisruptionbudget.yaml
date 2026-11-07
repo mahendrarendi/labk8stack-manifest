@@ -1,0 +1,14 @@
+{{- if and .Values.availability.podDisruptionBudget (gt (int .Values.replicaCount) 1) }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "labk8stack.fullname" . }}
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      {{- include "labk8stack.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+{{- end }}

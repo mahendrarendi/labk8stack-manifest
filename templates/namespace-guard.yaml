@@ -1,0 +1,45 @@
+{{- if .Values.admission.namespaceGuard }}
+{{- $prefix := required "app.namespacePrefix is required" .Values.app.namespacePrefix }}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ include "labk8stack.fullname" . }}-namespace-guard
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["namespaces", "serviceaccounts", "resourcequotas", "limitranges"]
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["rolebindings"]
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["networkpolicies"]
+  matchConditions:
+    - name: platform-service-account-only
+      expression: {{ printf "request.userInfo.username == 'system:serviceaccount:%s:%s'" .Release.Namespace (include "labk8stack.fullname" .) | quote }}
+  validations:
+    - expression: {{ printf "request.resource.resource == 'namespaces' ? (request.operation == 'DELETE' ? oldObject.metadata.name.startsWith('%s') : object.metadata.name.startsWith('%s')) : request.namespace.startsWith('%s')" $prefix $prefix $prefix | quote }}
+      message: "The LabK8stack provisioner may change only its own lab namespaces."
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ include "labk8stack.fullname" . }}-namespace-guard
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+spec:
+  policyName: {{ include "labk8stack.fullname" . }}-namespace-guard
+  validationActions: [Deny]
+{{- end }}

@@ -1,124 +1,188 @@
-# LabK8stack Helm deployment
+# LabK8stack deployment
 
-Chart ini memasang aplikasi LabK8stack. Cluster PostgreSQL CloudNativePG
-(CNPG) boleh berada di namespace yang sama atau berbeda. Operator CNPG
-dipasang terpisah di `cnpg-system`; cluster database dan Secret koneksi harus
-siap sebelum chart aplikasi dipasang. Chart ini tidak membuat PostgreSQL,
-StorageClass, PVC, atau Secret aplikasi.
+This repository deploys LabK8stack with Helm and Argo CD. It contains separate
+`development` and `production` values and Argo CD projects. The CloudNativePG
+(CNPG) operator, PostgreSQL clusters, storage, backups, and Secrets are managed
+separately from this chart.
 
-## Sebelum memasang
+## Layout
 
-1. Pasang operator CNPG dengan versi chart yang dipilih dan dipin.
-2. Buat CNPG `Cluster` di namespace database yang dipilih, beserta backup yang
-   teruji.
-3. Jika CNPG berada dalam namespace aplikasi, gunakan Secret
-   `<cluster-name>-app` dengan key `uri`. Jika beda namespace, buat atau sinkronkan
-   Secret koneksi **di namespace aplikasi** dan isi URI dengan host lengkap,
-   seperti `<cluster-name>-rw.<db-namespace>.svc.cluster.local`. Kubernetes
-   tidak mengizinkan Pod merujuk Secret dari namespace lain.
-4. Push image aplikasi LabK8stack dan image challenge ke registry.
-5. Buat Secret aplikasi berisi `SECRET_KEY` acak, `LAB_APP_IMAGE`, dan
-   `LAB_APP_GOOD_TAGS`. Simpan Secret melalui pengelola Secret cluster Anda;
-   jangan commit nilai rahasia ke Git.
+| Path | Purpose |
+| --- | --- |
+| `templates/` | Application, migration, cleanup, network, RBAC, and admission resources |
+| `environments/` | Development and production values |
+| `argocd/` | Environment projects and manual-sync Applications |
+| `scripts/validate.sh` | Helm lint and render checks used locally and in CI |
 
-Nilai yang wajib diisi: `image.repository`, `image.tag` atau `image.digest`,
-`database.clusterName`, dan `app.configSecretName`. Lihat [values.yaml](values.yaml).
-Untuk namespace database berbeda, isi juga `database.namespace` dan
-`database.appSecretName` (nama Secret lokal di namespace aplikasi).
+## Prerequisites
+
+- Kubernetes 1.30+ with `ValidatingAdmissionPolicy` support. The namespace
+  guard is enabled by default. Check with `kubectl api-resources | grep
+  validatingadmissionpolicies`.
+- Argo CD permitted to manage the chart's cluster-scoped RBAC and admission
+  resources.
+- Healthy, separate development and production CNPG clusters, with tested
+  backup and restore procedures.
+- Application and challenge images in a registry. Pin application releases by
+  immutable image digest.
+- HTTPS ingress and TLS certificates; session cookies use the `Secure` flag.
+- A Secret manager or synchronization controller. Never commit Secret values
+  or database URLs to this repository.
+
+## Database and Secrets
+
+Each environment must use a separate CNPG cluster and database. The production
+values target the existing `labk8stack-pgcluster` in `cnpg-system`; the
+development values still target a future development cluster. The chart
+expects two Secrets **in the application namespace**:
+
+| Secret | Required keys | Purpose |
+| --- | --- | --- |
+| `app.configSecretName` | `SECRET_KEY`, `LAB_APP_IMAGE`, `LAB_APP_GOOD_TAGS` | Session signing and lab image configuration |
+| `database.appSecretName` | `uri` by default; production uses `fqdn-uri` | PostgreSQL connection URI |
+
+When CNPG shares the application namespace, the chart can use CNPG's
+`<clusterName>-app` Secret. For production, mirror the CNPG application Secret
+into namespace `labk8stack` with the same name. Its `fqdn-uri` key points to
+`labk8stack-pgcluster-rw.cnpg-system.svc.cluster.local` and is read directly by
+the chart. Pods cannot read Secrets in another namespace. Configure the Secret
+manager to update the local copy when credentials rotate, and restart
+long-running application Pods to pick up the new environment value.
+
+For a separate database namespace, configure its NetworkPolicy alongside
+CNPG to allow TCP 5432 from application Pods. This chart installs a CNPG
+ingress policy only when CNPG is in the application namespace. Preserve the
+operator's required access if the database namespace uses default-deny.
+
+Configure CNPG backup and retention with the database deployment. Restore a
+backup into a separate cluster and run an application smoke test against it.
+Alert on backup failures, CNPG health, application readiness, migration
+failures, and cleanup failures.
+
+## Security boundary
+
+The application creates one namespace per user and challenge. Kubernetes RBAC
+cannot restrict namespace creation or deletion by name prefix. This chart
+installs a `ValidatingAdmissionPolicy` and binding that deny the application
+ServiceAccount's namespace and lab resource writes outside
+`app.namespacePrefix`. Argo CD installs the policy before the workload using
+a sync wave; the policy fails closed.
+
+This guard reduces provisioner risk, but a shared Kubernetes cluster is not a
+hard tenant boundary. The application retains cluster-scoped permissions and
+can impersonate the challenge `lab-runner` ServiceAccount. Run untrusted public
+labs in a dedicated cluster, or add an independently administered policy layer
+before sharing a cluster with sensitive workloads. Restrict who may change
+ClusterRoles, admission policies, and Argo CD projects.
+
+Development and production use separate namespace prefixes, databases, and
+Argo CD projects. Assign different Argo CD roles and repository review rules
+to each project. Both environments still target one cluster in the supplied
+manifests; use separate clusters when stronger isolation or independent
+availability is required.
+
+## Availability and migrations
+
+The web Deployment defaults to two replicas, rolling updates, a
+PodDisruptionBudget with one available replica, and preferred spread across
+nodes. At least two schedulable nodes are needed for node maintenance without
+an application interruption. Readiness and liveness probes are included.
+Database availability depends on the CNPG and storage design.
+
+The migration Job runs before web updates. Schema changes must be backward
+compatible with the currently running application during a rolling release.
+Review migrations before promotion; reverting an image does not reverse a
+database migration.
+
+## Release workflow
+
+The sequence below applies once the development database is available. For an
+initial production-only integration, follow **Configure and install** instead
+and treat that first deployment as a controlled smoke test.
+
+1. Build and test the application in its source repository. Its CI runs tests
+   against PostgreSQL and publishes an image. Record the immutable digest.
+2. Update `environments/development/values.yaml` with the image repository and
+   digest. Open a reviewed pull request and run `bash scripts/validate.sh`.
+   Merge, then sync the development Argo CD Application.
+3. Smoke test login, namespace creation, challenge verification, reset, and
+   cleanup against development and its CNPG cluster.
+4. Copy the **same tested image digest** to
+   `environments/production/values.yaml`. Review the production pull request.
+   Pin the production Argo CD `targetRevision` to the approved release tag or
+   commit, then sync production after approval.
+5. Check migration, rollout, readiness, logs, CNPG health, and backup status.
+   If the release fails, evaluate migration compatibility before rolling back
+   the Argo CD revision.
+
+The supplied Argo CD Applications use manual sync. Git changes appear as
+`OutOfSync` until synced. Development follows `main`; production has a release
+tag or commit placeholder. Argo CD renders the Helm chart and manages its
+Kubernetes resources. Do not also run `helm upgrade` for the same release.
+
+## Configure and install
+
+1. Wait for `labk8stack-pgcluster` to report three ready instances. Confirm
+   the `labk8stack-pgcluster-app` Secret and its `fqdn-uri` key exist.
+2. Configure scheduled backups outside this chart and perform a restore test.
+   Three database instances on the same NFS storage do not replace an
+   independent backup. Choose the backup method supported by your CNPG and
+   storage versions; do not assume NFS CSI supports VolumeSnapshots.
+3. Create namespace `labk8stack`. Synchronize the CNPG application Secret into
+   it and create `labk8stack-config` with `SECRET_KEY`, `LAB_APP_IMAGE`, and
+   `LAB_APP_GOOD_TAGS`. Use your Secret manager for rotation. The one-time copy
+   below is suitable only for initial integration testing:
+
+   ```bash
+   kubectl -n cnpg-system get cluster labk8stack-pgcluster
+   kubectl -n cnpg-system get secret labk8stack-pgcluster-app -o json \
+     | jq -e '.data["fqdn-uri"] != null' >/dev/null
+   kubectl create namespace labk8stack
+   kubectl -n cnpg-system get secret labk8stack-pgcluster-app -o json \
+     | jq '{apiVersion: .apiVersion, kind: .kind, metadata: {name: .metadata.name, namespace: "labk8stack"}, type: .type, data: .data}' \
+     | kubectl create -f -
+   kubectl -n labk8stack create secret generic labk8stack-config \
+     --from-env-file=/secure/path/labk8stack-config.env
+   ```
+
+   Store the env file outside the Git repository with restricted permissions.
+   It must contain a random `SECRET_KEY` and valid challenge image values, for
+   example `LAB_APP_IMAGE=ghcr.io/OWNER/k8s-lab-app:VERSION` and
+   `LAB_APP_GOOD_TAGS=VERSION`. Build and publish that challenge image before
+   using it. Generate the session key with `openssl rand -hex 32`.
+   The manual Secret copy does not follow CNPG credential rotation.
+4. Replace `repoURL` in the Argo CD Applications and projects. Set the
+   production image repository and digest, an approved production Git tag or
+   commit, and the ingress host, class, and TLS Secret. Create DNS and the TLS
+   Secret before exposing the site. Verify that any database NetworkPolicy
+   permits application Pods to reach port 5432.
+5. Run `bash scripts/validate.sh`, apply `argocd/project.yaml` and
+   `argocd/production.application.yaml`, then sync production manually. Deploy
+   development only after its own CNPG cluster and Secrets are ready.
+
+For a standalone chart check:
 
 ```bash
-helm lint . \
-  --set image.repository=REGISTRY/labk8stack \
-  --set image.tag=TAG \
-  --set database.clusterName=labk8stack-db \
-  --set app.configSecretName=labk8stack-config
-
-helm upgrade --install labk8stack . \
-  --namespace labk8stack --create-namespace --wait \
-  --set image.repository=REGISTRY/labk8stack \
-  --set image.tag=TAG \
-  --set database.clusterName=labk8stack-db \
-  --set app.configSecretName=labk8stack-config
+helm lint . -f environments/development/values.yaml \
+  --set-string image.repository=REGISTRY/labk8stack \
+  --set-string image.digest=sha256:IMAGE_DIGEST
 ```
 
-Contoh bila CNPG berada di namespace `labk8stack-db`:
+The environment files intentionally contain placeholders. The manifests are
+not deployable until you supply your registry, digest, Git URL, CNPG clusters,
+Secrets, ingress, and TLS settings.
+
+## Verification
+
+After syncing production, inspect the rollout, guard, and database:
 
 ```bash
-helm upgrade --install labk8stack . \
-  --namespace labk8stack --create-namespace --wait \
-  --set image.repository=REGISTRY/labk8stack \
-  --set image.tag=TAG \
-  --set database.namespace=labk8stack-db \
-  --set database.clusterName=labk8stack-db \
-  --set database.appSecretName=labk8stack-db-connection \
-  --set app.configSecretName=labk8stack-config
+kubectl -n labk8stack rollout status deployment/labk8stack
+kubectl -n labk8stack get pods,jobs,cronjobs,pdb
+kubectl get validatingadmissionpolicy,validatingadmissionpolicybinding | grep labk8stack
+kubectl -n cnpg-system get cluster labk8stack-pgcluster
 ```
 
-Secret `labk8stack-db-connection` harus ada di namespace `labk8stack`, berisi
-key `uri` yang menunjuk Service `labk8stack-db-rw.labk8stack-db.svc.cluster.local`.
-Jangan menyalin URI CNPG tanpa memeriksa host-nya: nama Service pendek akan
-dicari di namespace aplikasi. Gunakan pengelola Secret agar rotasi kredensial
-tetap dapat dilakukan.
-
-Untuk rilis sungguhan, simpan nilai non-rahasia dalam file values lingkungan
-dan pin image dengan tag immutable atau digest. `ingress.enabled` default
-`false`; saat diaktifkan, isi host, class, dan TLS Secret. Cookie sesi memakai
-atribut `Secure` sehingga akses browser harus melalui HTTPS.
-
-Chart menjalankan Job migrasi database sebelum web dirilis, memasang satu
-replica aplikasi, menjalankan CronJob cleanup tiap 15 menit, dan memasang
-NetworkPolicy ingress untuk Pod CNPG hanya bila CNPG satu namespace dengan
-aplikasi. Policy tersebut mengizinkan aplikasi, sesama Pod CNPG, serta operator
-di `database.operatorNamespace` pada port yang dibutuhkan. Untuk namespace
-database terpisah, kelola NetworkPolicy CNPG bersama release database dan
-izinkan trafik dari Pod aplikasi ke port 5432. Namespace challenge dibuat
-oleh aplikasi dengan NetworkPolicy ingress/egress sendiri; trafik keluar
-dibatasi ke Pod satu namespace dan DNS `kube-system`.
-
-Periksa kembali label/namespace operator, jaringan CNI, StorageClass, dan
-jadwal backup sebelum menerapkan chart ke cluster. ClusterRole provisioner
-memiliki izin cluster-wide untuk membuat dan menghapus namespace lab; gunakan
-cluster khusus atau kebijakan admission tambahan bila platform dibuka untuk
-pengguna yang tidak dipercaya.
-
-## GitOps dengan Argo CD
-
-`environments/development/values.yaml` dan `environments/production/values.yaml`
-menyimpan perbedaan yang tidak rahasia: image, nama database, namespace,
-dan prefix namespace challenge. Development memakai prefix `lab-dev-u`,
-production memakai `lab-prod-u`, agar resource kedua stage tidak bertabrakan.
-
-`argocd/` berisi satu `AppProject` dan dua `Application`. Sebelum diterapkan:
-
-1. Ganti `repoURL` dengan URL repository manifest yang sesungguhnya.
-2. Isi `image.repository` dan `image.tag` atau `image.digest` dengan image yang
-   sudah tersedia. Production sebaiknya menunjuk tag rilis atau digest
-   yang sudah lulus pengujian, bukan `main`.
-3. Sesuaikan namespace CNPG, nama cluster, Secret koneksi lokal, Ingress/TLS,
-   serta namespace operator sesuai instalasi Anda.
-4. Siapkan Secret di namespace aplikasi dan database, kemudian pastikan
-   database sehat. Aplikasi development dan production tidak boleh memakai
-   database yang sama.
-5. Terapkan `argocd/project.yaml`, lalu kedua `Application`. `CreateNamespace`
-   membuat namespace aplikasi saat sync; Secret dan CNPG tetap harus tersedia
-   sebelum sync aplikasi.
-
-Contoh validasi sebelum membuat `Application`:
-
-```bash
-helm lint . -f environments/development/values.yaml
-helm template labk8stack-dev . -n labk8stack-dev \
-  -f environments/development/values.yaml > /tmp/labk8stack-dev.yaml
-
-helm lint . -f environments/production/values.yaml
-helm template labk8stack . -n labk8stack \
-  -f environments/production/values.yaml > /tmp/labk8stack-prod.yaml
-```
-
-Argo CD tidak menjalankan `helm install`; ia merender chart dengan Helm lalu
-mengelola resource Kubernetes. Job migrasi yang memakai hook Helm dipetakan
-menjadi `PreSync`. Dua `Application` sengaja tidak mengaktifkan `automated`,
-`prune`, atau `selfHeal`; perubahan Git akan terlihat sebagai `OutOfSync` sampai
-Anda memilih sync manual atau mengubah kebijakannya nanti. Jangan menjalankan
-`helm upgrade` untuk release aplikasi yang sama setelah Argo CD menjadi
-pengelolanya.
+Use a dedicated test account to create and solve a lab, then verify cleanup
+removes expired namespaces. Monitor namespace count and resource usage. Test a
+rejected out-of-prefix write in a non-production cluster after chart changes.

@@ -1,16 +1,38 @@
-# Replace repoURL before applying. This project limits chart destinations.
+# Replace repoURL before applying. Keep environment access separate in Argo CD.
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: labk8stack
+  name: labk8stack-development
   namespace: argocd
 spec:
-  description: LabK8stack development and production deployments
+  description: LabK8stack development deployment
   sourceRepos:
     - https://github.com/REPLACE_ME/labk8stack-deploy.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: labk8stack-dev
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicy
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicyBinding
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: labk8stack-production
+  namespace: argocd
+spec:
+  description: LabK8stack production deployment
+  sourceRepos:
+    - https://github.com/REPLACE_ME/labk8stack-deploy.git
+  destinations:
     - server: https://kubernetes.default.svc
       namespace: labk8stack
   clusterResourceWhitelist:
@@ -20,3 +42,7 @@ spec:
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
       kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicy
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicyBinding

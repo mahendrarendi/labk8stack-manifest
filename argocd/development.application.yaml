@@ -5,7 +5,7 @@ metadata:
   name: labk8stack-dev
   namespace: argocd
 spec:
-  project: labk8stack
+  project: labk8stack-development
   source:
     repoURL: https://github.com/REPLACE_ME/labk8stack-deploy.git
     targetRevision: main
