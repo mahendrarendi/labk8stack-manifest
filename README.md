@@ -127,7 +127,11 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
 2. Configure scheduled backups outside this chart and perform a restore test.
    Three database instances on the same NFS storage do not replace an
    independent backup. Choose the backup method supported by your CNPG and
-   storage versions; do not assume NFS CSI supports VolumeSnapshots.
+   storage versions; do not assume NFS CSI supports VolumeSnapshots. Check the
+   installed resources with `kubectl -n cnpg-system get scheduledbackups,backups`
+   and `kubectl get volumesnapshotclasses`. If VolumeSnapshotClass is not
+   installed, configure object-store backup with the CNPG backup plugin or
+   another supported method before production use.
 3. Create namespace `labk8stack`. Synchronize the CNPG application Secret into
    it and create `labk8stack-config` with `SECRET_KEY`, `LAB_APP_IMAGE`, and
    `LAB_APP_GOOD_TAGS`. Use your Secret manager for rotation. The one-time copy
