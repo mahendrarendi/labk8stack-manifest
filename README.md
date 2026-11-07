@@ -130,7 +130,8 @@ and treat that first deployment as a controlled smoke test.
 4. Copy the **same tested image digest** to
    `environments/production/values.yaml`. Review the production pull request.
    Pin the production Argo CD `targetRevision` to the approved release tag or
-   commit, then sync production after approval.
+   commit, apply the updated Application resource, then sync production after
+   approval. The Application resource is not self-managed by Argo CD.
 5. Check migration, rollout, readiness, logs, CNPG health, and backup status.
    If the release fails, evaluate migration compatibility before rolling back
    the Argo CD revision.
@@ -175,8 +176,8 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    Generate the session key with `openssl rand -hex 32`.
    The manual Secret copy does not follow CNPG credential rotation.
 4. Verify the configured `repoURL` points to your actual GitHub repository.
-   Set the production image digest, an approved production Git tag or
-   commit, and the ingress host, class, and TLS Secret. Create DNS and the TLS
+   Verify the production image digest and pinned Git revision, then set the
+   ingress host, class, and TLS Secret. Create DNS and the TLS
    Secret before exposing the site. Verify that any database NetworkPolicy
    permits application Pods to reach port 5432.
 5. Run `bash scripts/validate.sh`, apply `argocd/project.yaml` and
