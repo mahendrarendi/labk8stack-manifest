@@ -23,8 +23,9 @@ separately from this chart.
   resources.
 - Healthy, separate development and production CNPG clusters, with tested
   backup and restore procedures.
-- Application and challenge images in a registry. Pin application releases by
-  immutable image digest.
+- An application image in a registry. Pin application releases by immutable
+  image digest. A separate challenge image is optional for the initial website
+  deployment; see **Challenge workload image** below.
 - HTTPS ingress and TLS certificates; session cookies use the `Secure` flag.
 - A Secret manager or synchronization controller. Never commit Secret values
   or database URLs to this repository.
@@ -48,6 +49,24 @@ into namespace `labk8stack` with the same name. Its `fqdn-uri` key points to
 the chart. Pods cannot read Secrets in another namespace. Configure the Secret
 manager to update the local copy when credentials rotate, and restart
 long-running application Pods to pick up the new environment value.
+
+### Challenge workload image
+
+`LAB_APP_IMAGE` is the image created inside each learner's lab namespace. It
+is not the LabK8stack platform image. The old `k8s-lab-app` folder contains a
+purpose-built sample workload, but it does not need to be built before the
+platform website can be deployed. For an initial integration test, set:
+
+```env
+LAB_APP_IMAGE=registry.k8s.io/echoserver:1.10
+LAB_APP_GOOD_TAGS=1.10,latest
+```
+
+This generic image is enough to start the platform and test some lab flows.
+The OOM, readiness-probe, and port-env challenges will not show their intended
+real-cluster symptoms with it. Build and publish the sample workload (or an
+equivalent image with the required behavior) before opening all challenges to
+users.
 
 For a separate database namespace, configure its NetworkPolicy alongside
 CNPG to allow TCP 5432 from application Pods. This chart installs a CNPG
@@ -150,10 +169,9 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    ```
 
    Store the env file outside the Git repository with restricted permissions.
-   It must contain a random `SECRET_KEY` and valid challenge image values, for
-   example `LAB_APP_IMAGE=ghcr.io/OWNER/k8s-lab-app:VERSION` and
-   `LAB_APP_GOOD_TAGS=VERSION`. Build and publish that challenge image before
-   using it. Generate the session key with `openssl rand -hex 32`.
+   It must contain a random `SECRET_KEY` and valid challenge image values.
+   The public image above is suitable for the initial website deployment.
+   Generate the session key with `openssl rand -hex 32`.
    The manual Secret copy does not follow CNPG credential rotation.
 4. Replace `repoURL` in the Argo CD Applications and projects. Set the
    production image repository and digest, an approved production Git tag or
