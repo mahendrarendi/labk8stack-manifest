@@ -35,6 +35,8 @@ spec:
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               command: ["python", "-m", "app.cleanup", "--apply"]
               env:
+                - name: KUBECONFIG
+                  value: /etc/labk8stack/kubeconfig/config
                 - name: LAB_MODE
                   value: kubernetes
                 - name: LAB_NAMESPACE_PREFIX
@@ -61,6 +63,12 @@ spec:
               volumeMounts:
                 - name: tmp
                   mountPath: /tmp
+                - name: kubeconfig
+                  mountPath: /etc/labk8stack/kubeconfig
+                  readOnly: true
           volumes:
             - name: tmp
               emptyDir: {}
+            - name: kubeconfig
+              configMap:
+                name: {{ include "labk8stack.fullname" . }}-kubeconfig

@@ -102,6 +102,12 @@ labs in a dedicated cluster, or add an independently administered policy layer
 before sharing a cluster with sensitive workloads. Restrict who may change
 ClusterRoles, admission policies, and Argo CD projects.
 
+The chart mounts a non-secret in-cluster kubeconfig into the web and cleanup
+Pods. It points to the Kubernetes Service and reads the projected ServiceAccount
+token from its file, so token rotation continues to work. An explicit
+kubeconfig is required for the web Pod's `kubectl --as` commands; otherwise
+`kubectl` may lose its automatic in-cluster configuration during impersonation.
+
 Development and production use separate namespace prefixes, databases, and
 Argo CD projects. Assign different Argo CD roles and repository review rules
 to each project. Both environments still target one cluster in the supplied

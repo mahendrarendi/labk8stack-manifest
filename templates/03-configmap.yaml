@@ -9,3 +9,34 @@ metadata:
 data:
   LAB_APP_IMAGE: {{ required "app.challengeImage is required" .Values.app.challengeImage | quote }}
   LAB_APP_GOOD_TAGS: {{ required "app.challengeGoodTags is required" .Values.app.challengeGoodTags | quote }}
+---
+# An explicit kubeconfig keeps kubectl's API server and credentials when the
+# application uses --as to run learner commands as the sandbox ServiceAccount.
+# tokenFile reads the rotating projected token; no credential is stored here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "labk8stack.fullname" . }}-kubeconfig
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+data:
+  config: |
+    apiVersion: v1
+    kind: Config
+    clusters:
+      - name: in-cluster
+        cluster:
+          server: https://kubernetes.default.svc
+          certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    users:
+      - name: platform
+        user:
+          tokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+    contexts:
+      - name: in-cluster
+        context:
+          cluster: in-cluster
+          user: platform
+    current-context: in-cluster
