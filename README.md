@@ -1,6 +1,6 @@
 # LabK8stack deployment
 
-This `k8s-lab-deploy` repository deploys LabK8stack with Helm and Argo CD. It contains separate
+This repository deploys LabK8stack with Helm and Argo CD. It contains separate
 `development` and `production` values and Argo CD projects. The CloudNativePG
 (CNPG) operator, PostgreSQL clusters, storage, backups, and Secrets are managed
 separately from this chart.
