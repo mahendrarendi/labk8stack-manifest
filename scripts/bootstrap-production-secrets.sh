@@ -5,8 +5,6 @@ namespace="labk8stack"
 database_namespace="cnpg-system"
 database_secret="labk8stack-pgcluster-app"
 config_secret="labk8stack-config"
-challenge_image="${LAB_APP_IMAGE:-registry.k8s.io/echoserver:1.10}"
-challenge_good_tags="${LAB_APP_GOOD_TAGS:-1.10,latest}"
 
 for executable in kubectl base64 openssl; do
   command -v "$executable" >/dev/null || {
@@ -39,8 +37,8 @@ fi
 
 if ! kubectl -n "$namespace" get secret "$config_secret" >/dev/null 2>&1; then
   umask 077
-  printf 'SECRET_KEY=%s\nLAB_APP_IMAGE=%s\nLAB_APP_GOOD_TAGS=%s\n' \
-    "$(openssl rand -hex 32)" "$challenge_image" "$challenge_good_tags" \
+  printf 'SECRET_KEY=%s\n' \
+    "$(openssl rand -hex 32)" \
     > "$temporary_directory/config.env"
   kubectl -n "$namespace" create secret generic "$config_secret" \
     --from-env-file="$temporary_directory/config.env"

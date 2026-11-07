@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "labk8stack.fullname" . }}-settings
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+  labels:
+    {{- include "labk8stack.labels" . | nindent 4 }}
+data:
+  LAB_APP_IMAGE: {{ required "app.challengeImage is required" .Values.app.challengeImage | quote }}
+  LAB_APP_GOOD_TAGS: {{ required "app.challengeGoodTags is required" .Values.app.challengeGoodTags | quote }}

@@ -31,17 +31,19 @@ separately from this chart.
 - A Secret manager or synchronization controller. Never commit Secret values
   or database URLs to this repository.
 
-## Database and Secrets
+## Configuration and Secrets
 
 Each environment must use a separate CNPG cluster and database. The production
 values target the existing `labk8stack-pgcluster` in `cnpg-system`; the
 development values still target a future development cluster. The chart
-expects two Secrets **in the application namespace**:
+creates a ConfigMap for non-sensitive challenge settings and expects two
+Secrets **in the application namespace**:
 
-| Secret | Required keys | Purpose |
+| Resource | Required keys | Purpose |
 | --- | --- | --- |
-| `app.configSecretName` | `SECRET_KEY`, `LAB_APP_IMAGE`, `LAB_APP_GOOD_TAGS` | Session signing and lab image configuration |
-| `database.appSecretName` | `uri` by default; production uses `fqdn-uri` | PostgreSQL connection URI |
+| ConfigMap `labk8stack-settings` | `LAB_APP_IMAGE`, `LAB_APP_GOOD_TAGS` | Non-sensitive lab workload settings |
+| Secret `app.configSecretName` | `SECRET_KEY` | Session signing |
+| Secret `database.appSecretName` | `uri` by default; production uses `fqdn-uri` | PostgreSQL connection URI |
 
 When CNPG shares the application namespace, the chart can use CNPG's
 `<clusterName>-app` Secret. For production, mirror the CNPG application Secret
@@ -57,12 +59,16 @@ long-running application Pods to pick up the new environment value.
 is not the LabK8stack platform image. A purpose-built sample workload is
 archived outside the two active project directories. It does not need to be
 built before the platform website can be deployed. For an initial integration
-test, set:
+test, the chart defaults to:
 
 ```env
 LAB_APP_IMAGE=registry.k8s.io/echoserver:1.10
 LAB_APP_GOOD_TAGS=1.10,latest
 ```
+
+Change `app.challengeImage` and `app.challengeGoodTags` in the environment
+values to change these settings. Helm updates the ConfigMap and rolls the web
+Pods so the new environment values are loaded.
 
 This generic image is enough to start the platform and test some lab flows.
 The OOM, readiness-probe, and port-env challenges will not show their intended
@@ -138,8 +144,8 @@ and treat that first deployment as a controlled smoke test.
    the Argo CD revision.
 
 The supplied Argo CD Applications use manual sync. Git changes appear as
-`OutOfSync` until synced. Development follows `main`; production has a release
-tag or commit placeholder. Argo CD renders the Helm chart and manages its
+`OutOfSync` until synced. Development follows `main`; production is pinned to
+an approved manifest commit. Argo CD renders the Helm chart and manages its
 Kubernetes resources. Do not also run `helm upgrade` for the same release.
 
 ## Configure and install
@@ -155,8 +161,8 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    installed, configure object-store backup with the CNPG backup plugin or
    another supported method before production use.
 3. Create namespace `labk8stack`. Synchronize the CNPG application Secret into
-   it and create `labk8stack-config` with `SECRET_KEY`, `LAB_APP_IMAGE`, and
-   `LAB_APP_GOOD_TAGS`. Use your Secret manager for rotation. The one-time copy
+   it and create `labk8stack-config` with `SECRET_KEY` only. Use your Secret
+   manager for rotation. The one-time copy
    below is suitable only for initial integration testing. The easiest way to
    perform it is:
 
@@ -164,11 +170,10 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    bash scripts/bootstrap-production-secrets.sh
    ```
 
-   The script generates a random session key, uses the public echoserver as
-   the initial lab image, skips Secrets that already exist, and never prints
-   Secret values. To use a different lab image, set `LAB_APP_IMAGE` and
-   `LAB_APP_GOOD_TAGS` in the shell before running it. Its CNPG Secret copy
-   does not follow credential rotation.
+   The script generates a random session key, skips Secrets that already
+   exist, and never prints Secret values. The lab image now comes from the
+   chart-managed ConfigMap. Its CNPG Secret copy does not follow credential
+   rotation.
 
    For manual provisioning, the equivalent commands are:
 
@@ -185,8 +190,9 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    ```
 
    Store the env file outside the Git repository with restricted permissions.
-   It must contain a random `SECRET_KEY` and valid challenge image values.
-   The public image above is suitable for the initial website deployment.
+   It needs only a random `SECRET_KEY`. Existing Secrets with the old
+   `LAB_APP_IMAGE` and `LAB_APP_GOOD_TAGS` keys remain valid; those extra keys
+   are ignored by the updated chart.
    Generate the session key with `openssl rand -hex 32`.
    The manual Secret copy does not follow CNPG credential rotation.
 4. Verify the configured `repoURL` points to your actual GitHub repository.

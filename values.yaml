@@ -19,9 +19,11 @@ database:
   cnpgIngressPolicy: true
 
 app:
-  # Create this Secret outside Helm with SECRET_KEY, LAB_APP_IMAGE,
-  # and LAB_APP_GOOD_TAGS. Do not commit its contents to Git.
+  # Create this Secret outside Helm with SECRET_KEY. Do not commit its value.
   configSecretName: ""
+  # Non-sensitive lab workload settings are stored in a chart-managed ConfigMap.
+  challengeImage: registry.k8s.io/echoserver:1.10
+  challengeGoodTags: "1.10,latest"
   namespacePrefix: lab-u
   sandboxIdleDays: 30
   sandboxGraceMinutes: 60

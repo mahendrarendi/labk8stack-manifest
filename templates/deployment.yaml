@@ -20,6 +20,8 @@ spec:
       labels:
         {{- include "labk8stack.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: web
+      annotations:
+        checksum/challenge-config: {{ printf "%s\n%s" .Values.app.challengeImage .Values.app.challengeGoodTags | sha256sum }}
     spec:
       serviceAccountName: {{ include "labk8stack.fullname" . }}
       topologySpreadConstraints:
@@ -77,13 +79,13 @@ spec:
                   key: SECRET_KEY
             - name: LAB_APP_IMAGE
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "labk8stack.appSecret" . }}
+                configMapKeyRef:
+                  name: {{ include "labk8stack.fullname" . }}-settings
                   key: LAB_APP_IMAGE
             - name: LAB_APP_GOOD_TAGS
               valueFrom:
-                secretKeyRef:
-                  name: {{ include "labk8stack.appSecret" . }}
+                configMapKeyRef:
+                  name: {{ include "labk8stack.fullname" . }}-settings
                   key: LAB_APP_GOOD_TAGS
           startupProbe:
             httpGet:

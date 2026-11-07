@@ -27,5 +27,7 @@ for environment in development production; do
 
   grep -q 'kind: ValidatingAdmissionPolicyBinding' "$rendered"
   grep -q 'kind: PodDisruptionBudget' "$rendered"
+  grep -q 'kind: ConfigMap' "$rendered"
+  grep -q 'configMapKeyRef:' "$rendered"
   grep -q "${validation_repo}@${validation_digest}" "$rendered"
 done
