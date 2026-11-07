@@ -2,7 +2,7 @@
 image:
   repository: ghcr.io/mahendrarendi/labk8stack-app
   tag: ""
-  digest: ""
+  digest: "sha256:622f9e9bd7cf4bf187e3f229bf59883d244ec4f833d461231622cc924444a418"
 
 database:
   namespace: cnpg-system
