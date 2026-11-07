@@ -10,7 +10,7 @@ spec:
   project: labk8stack-production
   source:
     repoURL: https://github.com/mahendrarendi/labk8stack-manifest.git
-    targetRevision: 0e80952c88c3fb8638de25c3cdfc75764379784b
+    targetRevision: 850b067493fe11339f78da21f3d3763d58bce02c
     path: .
     helm:
       releaseName: labk8stack
