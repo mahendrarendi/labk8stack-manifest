@@ -1,6 +1,6 @@
 # LabK8stack deployment
 
-This repository deploys LabK8stack with Helm and Argo CD. It contains separate
+This `k8s-lab-deploy` repository deploys LabK8stack with Helm and Argo CD. It contains separate
 `development` and `production` values and Argo CD projects. The CloudNativePG
 (CNPG) operator, PostgreSQL clusters, storage, backups, and Secrets are managed
 separately from this chart.
@@ -53,9 +53,10 @@ long-running application Pods to pick up the new environment value.
 ### Challenge workload image
 
 `LAB_APP_IMAGE` is the image created inside each learner's lab namespace. It
-is not the LabK8stack platform image. The old `k8s-lab-app` folder contains a
-purpose-built sample workload, but it does not need to be built before the
-platform website can be deployed. For an initial integration test, set:
+is not the LabK8stack platform image. A purpose-built sample workload is
+archived outside the two active project directories. It does not need to be
+built before the platform website can be deployed. For an initial integration
+test, set:
 
 ```env
 LAB_APP_IMAGE=registry.k8s.io/echoserver:1.10
@@ -173,8 +174,8 @@ Kubernetes resources. Do not also run `helm upgrade` for the same release.
    The public image above is suitable for the initial website deployment.
    Generate the session key with `openssl rand -hex 32`.
    The manual Secret copy does not follow CNPG credential rotation.
-4. Replace `repoURL` in the Argo CD Applications and projects. Set the
-   production image repository and digest, an approved production Git tag or
+4. Verify the configured `repoURL` points to your actual GitHub repository.
+   Set the production image digest, an approved production Git tag or
    commit, and the ingress host, class, and TLS Secret. Create DNS and the TLS
    Secret before exposing the site. Verify that any database NetworkPolicy
    permits application Pods to reach port 5432.

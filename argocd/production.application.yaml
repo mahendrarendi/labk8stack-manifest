@@ -8,7 +8,7 @@ metadata:
 spec:
   project: labk8stack-production
   source:
-    repoURL: https://github.com/REPLACE_ME/labk8stack-deploy.git
+    repoURL: https://github.com/mahendrarendi/k8s-lab-deploy.git
     targetRevision: REPLACE_WITH_RELEASE_TAG
     path: .
     helm:

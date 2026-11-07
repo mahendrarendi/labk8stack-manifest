@@ -1,7 +1,8 @@
 # Pin production to an immutable image digest before syncing.
 image:
-  repository: ""
+  repository: ghcr.io/mahendrarendi/labk8stack-app
   tag: ""
+  digest: ""
 
 database:
   namespace: cnpg-system
